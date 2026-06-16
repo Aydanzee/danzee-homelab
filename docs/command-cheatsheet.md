@@ -178,3 +178,18 @@ sudo journalctl -u ollama -n 100 --no-pager
 sudo journalctl -u tailscaled -n 100 --no-pager
 sudo journalctl -u danzee-homelab-backup.service -n 100 --no-pager
 ```
+
+## Monitoring
+
+```bash
+# Uptime Kuma
+docker ps --filter name=uptime-kuma
+docker logs --tail 100 uptime-kuma
+
+# Backup heartbeat
+sudo journalctl -t danzee-backup-heartbeat -n 20 --no-pager
+sudo /usr/local/sbin/danzee-backup-heartbeat
+
+# Scoped firewall access
+sudo ufw status numbered
+```

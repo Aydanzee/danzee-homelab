@@ -9,6 +9,7 @@ config/homelab.env
 *.pfx
 *passphrase*
 *recovery-key*
+*push-url*
 authkey*
 secrets.yaml
 k3s.yaml

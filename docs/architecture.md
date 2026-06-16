@@ -82,3 +82,22 @@ existing USB filesystem mounted by UUID
 ```
 
 The USB filesystem is not formatted by the installation script.
+
+## Monitoring flow
+
+```text
+Uptime Kuma container
+  |
+  +-- HTTP keyword --> Axiom Local health endpoint
+  +-- HTTP ---------> k3s Hello App
+  +-- HTTPS --------> Portainer
+
+Successful systemd backup
+  |
+  +-- ExecStartPost --> backup heartbeat
+                        |
+                        v
+                  Uptime Kuma Push monitor
+```
+
+UFW permits only the discovered Uptime Kuma Docker subnet to reach the host ports used by Axiom Local and Portainer. The backup heartbeat retries because Uptime Kuma is briefly restarted while its persistent volume is archived.

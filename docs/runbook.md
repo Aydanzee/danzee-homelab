@@ -78,3 +78,36 @@ sudo test -r /root/.config/danzee-backup/backup.passphrase
 ```
 
 The backup script refuses to write if the mounted partition UUID does not match its configuration.
+
+## Uptime Kuma cannot reach a host service
+
+Confirm the target is healthy from the host first:
+
+```bash
+curl -fsS http://127.0.0.1:8088/api/health
+```
+
+Then identify the Uptime Kuma Docker network and review the scoped firewall rules:
+
+```bash
+docker inspect uptime-kuma
+docker network inspect danzee-homelab_default
+sudo ufw status numbered
+```
+
+Re-run the repository helper with the reserved LAN address when the Docker subnet changes:
+
+```bash
+sudo bash scripts/server/configure-monitoring.sh --lan-ip LAN_IP
+```
+
+## Backup monitor is stale
+
+```bash
+sudo journalctl -u danzee-homelab-backup.service -n 100 --no-pager
+sudo journalctl -t danzee-backup-heartbeat -n 30 --no-pager
+sudo test -r /etc/danzee-homelab/uptime-kuma-backup-push-url
+systemctl list-timers danzee-homelab-backup.timer --all
+```
+
+A first heartbeat attempt may fail immediately after the backup because Uptime Kuma has just restarted. The heartbeat script retries before recording a warning.

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 - 2026-06-17
 
 - Made Portainer and Uptime Kuma volume snapshots consistent by stopping and reliably restarting their containers.
 - Added filesystem-specific USB mount options and explicit supported-filesystem checks.
@@ -8,6 +8,9 @@
 - Replaced the Tailscale curl-to-shell path with its official Ubuntu stable apt repository.
 - Added the k3s pod and service network UFW allowances used by the working host.
 - Added GitHub Actions validation for Bash, YAML and sensitive filenames.
+- Added Uptime Kuma monitoring for Axiom Local, the k3s demo workload, Portainer, and nightly encrypted backups.
+- Added a successful-backup Push heartbeat with retry handling after the Uptime Kuma volume snapshot.
+- Added reproducible monitoring automation, runbook guidance, and scoped Docker-subnet firewall rules.
 - Corrected the systemd documentation URL and expanded the tested-environment documentation.
 
 ## 2026-06-16

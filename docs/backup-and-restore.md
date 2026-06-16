@@ -98,3 +98,19 @@ The routine validation script only runs `PRAGMA integrity_check`; it does not al
 ## Application-volume consistency
 
 MariaDB is captured with a transactional logical dump. Portainer and Uptime Kuma are stopped briefly while their persistent volumes are archived, then restarted immediately. The exit trap also restarts them if a later backup step fails.
+
+## Success heartbeat
+
+After the encrypted archive is created, verified, and retained successfully, systemd runs `/usr/local/sbin/danzee-backup-heartbeat` through `ExecStartPost`.
+
+The hook reads a root-only Uptime Kuma Push URL and retries delivery while the Uptime Kuma container finishes restarting. Monitoring delivery failure is logged but does not invalidate an otherwise successful backup.
+
+Useful checks:
+
+```bash
+sudo journalctl -t danzee-backup-heartbeat -n 20 --no-pager
+sudo systemctl show danzee-homelab-backup.service \
+  --property=Result \
+  --property=ExecMainStatus \
+  --property=ExecMainCode
+```

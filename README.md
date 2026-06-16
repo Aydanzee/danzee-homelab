@@ -45,7 +45,10 @@ flowchart LR
     K3s[k3s]
     Ollama[Ollama API\nlocalhost only]
     Axiom[Axiom Local]
+    Kuma[Uptime Kuma]
+    Portainer[Portainer]
     USB[Encrypted USB backups]
+    Heartbeat[Backup success heartbeat]
 
     Mac --> Router
     Mac --> TS
@@ -56,8 +59,15 @@ flowchart LR
     Lab --> K3s
     Lab --> Ollama
     Docker --> Axiom
+    Docker --> Kuma
+    Docker --> Portainer
     Axiom --> Ollama
+    Kuma --> Axiom
+    Kuma --> K3s
+    Kuma --> Portainer
     Lab --> USB
+    Lab --> Heartbeat
+    Heartbeat --> Kuma
 ```
 
 ## Security posture
@@ -88,6 +98,7 @@ flowchart LR
 │   ├── architecture.md
 │   ├── backup-and-restore.md
 │   ├── command-cheatsheet.md
+│   ├── monitoring.md
 │   └── runbook.md
 ├── k8s/
 │   ├── guardrails.yaml
@@ -97,14 +108,18 @@ flowchart LR
 │   ├── mac/
 │   │   └── publish-existing-repo.sh
 │   └── server/
+│       ├── backup-heartbeat.sh
+│       ├── backup.sh
 │       ├── bootstrap-homelab.sh
+│       ├── configure-monitoring.sh
 │       ├── health-check.sh
 │       ├── install-backup-system.sh
-│       ├── backup.sh
 │       └── validate-latest-backup.sh
 └── systemd/
     ├── danzee-homelab-backup.service
-    └── danzee-homelab-backup.timer
+    ├── danzee-homelab-backup.timer
+    └── danzee-homelab-backup.service.d/
+        └── uptime-kuma-heartbeat.conf
 ```
 
 ## Quick start
@@ -151,6 +166,16 @@ sudo bash scripts/server/health-check.sh
 sudo bash scripts/server/validate-latest-backup.sh
 ```
 
+### 5. Configure service monitoring
+
+Create the Uptime Kuma monitors described in [`docs/monitoring.md`](docs/monitoring.md), then install the scoped firewall rules and backup heartbeat:
+
+```bash
+sudo bash scripts/server/configure-monitoring.sh --lan-ip LAN_IP
+```
+
+The Push URL is requested through a hidden prompt and stored in a root-only file. Do not paste it into configuration tracked by Git.
+
 ## Useful commands
 
 The full operational cheat sheet is in [`docs/command-cheatsheet.md`](docs/command-cheatsheet.md).
@@ -194,6 +219,14 @@ sudo journalctl -u danzee-homelab-backup.service -n 80 --no-pager
 
 Axiom Local is the private local-AI web interface used on this homelab. Its application source is intentionally not included here. This repository documents the infrastructure around it and reserves the default app port `8088`.
 
+## Monitoring and backup heartbeat
+
+Uptime Kuma monitors Axiom Local, the k3s demo workload, Portainer, and completion of the nightly encrypted backup. The backup monitor uses a Push heartbeat that is sent only after the systemd backup service succeeds.
+
+UFW access for Axiom Local and Portainer is limited to the discovered Uptime Kuma Docker subnet. The Docker socket is not mounted into the monitoring container.
+
+See [`docs/monitoring.md`](docs/monitoring.md) for the monitor definitions, firewall model, heartbeat behaviour, and troubleshooting commands.
+
 ## Recovery principle
 
 A backup is not considered trustworthy until it has been decrypted, extracted, and validated. The supplied validation script checks:
@@ -218,6 +251,8 @@ This repository captures a working single-node lab with tested:
 - checksum verification;
 - full restore validation;
 - nightly systemd scheduling;
+- Uptime Kuma service monitoring;
+- successful-backup Push heartbeats with retry handling;
 - automated shell and YAML validation through GitHub Actions.
 
 ## License
