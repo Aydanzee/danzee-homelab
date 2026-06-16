@@ -1,0 +1,45 @@
+# Secrets
+.env
+.env.*
+!.env.example
+config/homelab.env
+*.key
+*.pem
+*.p12
+*.pfx
+*passphrase*
+*recovery-key*
+authkey*
+secrets.yaml
+k3s.yaml
+
+# Backups and databases
+*.enc
+*.sql
+*.sql.gz
+*.db
+*.sqlite
+*.sqlite3
+*.tar
+*.tar.gz
+*.tgz
+backups/
+restore/
+*.sha256
+
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.fseventsd
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Runtime
+logs/
+tmp/
+*.log

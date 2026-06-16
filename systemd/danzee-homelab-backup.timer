@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Danzee homelab backup nightly
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+AccuracySec=1m
+Unit=danzee-homelab-backup.service
+
+[Install]
+WantedBy=timers.target

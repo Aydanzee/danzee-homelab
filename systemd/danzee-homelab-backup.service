@@ -1,0 +1,16 @@
+[Unit]
+Description=Create encrypted Danzee homelab backup
+Documentation=https://github.com/OWNER/danzee-homelab
+Wants=docker.service k3s.service
+After=docker.service k3s.service network-online.target
+RequiresMountsFor=/mnt/danzee-backup
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/danzee-homelab/backup.conf
+ExecStart=/usr/local/sbin/danzee-homelab-backup
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+PrivateTmp=true
+NoNewPrivileges=true
