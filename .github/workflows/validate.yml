@@ -1,0 +1,68 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck yamllint
+
+      - name: Validate Bash syntax
+        shell: bash
+        run: |
+          while IFS= read -r -d '' script; do
+            bash -n "$script"
+          done < <(find scripts -type f -name '*.sh' -print0)
+
+      - name: Run ShellCheck
+        run: |
+          shellcheck \
+            --severity=error \
+            scripts/mac/*.sh \
+            scripts/server/*.sh
+
+      - name: Validate YAML
+        run: |
+          yamllint \
+            -c .yamllint.yml \
+            k8s \
+            .github/workflows
+
+      - name: Reject sensitive tracked filenames
+        shell: bash
+        run: |
+          forbidden="$(
+            git ls-files |
+              grep -E \
+                '(^|/)(config/homelab\.env|.*passphrase.*|.*recovery-key.*|k3s\.yaml|.*\.enc|.*\.p12|.*\.pfx)$' \
+                || true
+          )"
+
+          if [[ -n "$forbidden" ]]; then
+            echo "Sensitive filenames are tracked:"
+            echo "$forbidden"
+            exit 1
+          fi
+
+      - name: Reject committed private keys
+        shell: bash
+        run: |
+          if git grep -nE \
+            'BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY'; then
+            echo "A private key appears to be committed."
+            exit 1
+          fi

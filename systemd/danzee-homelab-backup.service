@@ -1,6 +1,6 @@
 [Unit]
 Description=Create encrypted Danzee homelab backup
-Documentation=https://github.com/OWNER/danzee-homelab
+Documentation=https://github.com/Aydanzee/danzee-homelab
 Wants=docker.service k3s.service
 After=docker.service k3s.service network-online.target
 RequiresMountsFor=/mnt/danzee-backup

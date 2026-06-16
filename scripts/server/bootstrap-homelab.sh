@@ -17,6 +17,19 @@ fi
 # shellcheck disable=SC1090
 source "$CONFIG_FILE"
 
+: "${K3S_VERSION:=v1.35.5+k3s1}"
+: "${OLLAMA_VERSION:=0.30.8}"
+: "${K3S_POD_CIDR:=10.42.0.0/16}"
+: "${K3S_SERVICE_CIDR:=10.43.0.0/16}"
+
+TEMP_INSTALLERS=()
+
+cleanup_installers() {
+  rm -f "${TEMP_INSTALLERS[@]}"
+}
+
+trap cleanup_installers EXIT
+
 required_vars=(
   LAB_HOSTNAME
   LINUX_USER
@@ -53,6 +66,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
   sqlite3 \
   tar \
   gzip \
+  zstd \
   rsync \
   ufw \
   util-linux
@@ -86,23 +100,48 @@ systemctl enable --now docker
 usermod -aG docker "$LINUX_USER"
 
 if ! command -v k3s >/dev/null 2>&1; then
-  log "Installing single-node k3s"
-  curl -sfL https://get.k3s.io | \
-    INSTALL_K3S_EXEC="server --disable traefik --disable servicelb" sh -
+  log "Installing tested k3s version: $K3S_VERSION"
+
+  K3S_INSTALLER="$(mktemp)"
+  TEMP_INSTALLERS+=("$K3S_INSTALLER")
+
+  curl -fsSL     https://get.k3s.io     -o "$K3S_INSTALLER"
+
+  INSTALL_K3S_VERSION="$K3S_VERSION"   INSTALL_K3S_EXEC="server --disable traefik --disable servicelb --cluster-cidr $K3S_POD_CIDR --service-cidr $K3S_SERVICE_CIDR"     sh "$K3S_INSTALLER"
 fi
 
 systemctl enable --now k3s
 
 if ! command -v tailscale >/dev/null 2>&1; then
-  log "Installing Tailscale"
-  curl -fsSL https://tailscale.com/install.sh | sh
+  log "Installing Tailscale from its official stable apt repository"
+
+  TS_CODENAME="$(
+    . /etc/os-release
+    echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}"
+  )"
+
+  install -d -m 0755     /usr/share/keyrings     /etc/apt/sources.list.d
+
+  curl -fsSL     "https://pkgs.tailscale.com/stable/ubuntu/${TS_CODENAME}.noarmor.gpg"     -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+
+  curl -fsSL     "https://pkgs.tailscale.com/stable/ubuntu/${TS_CODENAME}.tailscale-keyring.list"     -o /etc/apt/sources.list.d/tailscale.list
+
+  apt-get update
+
+  DEBIAN_FRONTEND=noninteractive     apt-get install -y tailscale
 fi
 
 systemctl enable --now tailscaled
 
 if ! command -v ollama >/dev/null 2>&1; then
-  log "Installing Ollama"
-  curl -fsSL https://ollama.com/install.sh | sh
+  log "Installing tested Ollama version: $OLLAMA_VERSION"
+
+  OLLAMA_INSTALLER="$(mktemp)"
+  TEMP_INSTALLERS+=("$OLLAMA_INSTALLER")
+
+  curl -fsSL     https://ollama.com/install.sh     -o "$OLLAMA_INSTALLER"
+
+  OLLAMA_VERSION="$OLLAMA_VERSION"     sh "$OLLAMA_INSTALLER"
 fi
 
 log "Applying low-memory Ollama service limits"
@@ -218,6 +257,12 @@ k3s kubectl apply -f "$REPO_ROOT/k8s/storage-demo.yaml"
 log "Configuring UFW"
 ufw default deny incoming
 ufw default allow outgoing
+
+ufw allow from "$K3S_POD_CIDR" \
+  comment 'k3s pod network'
+
+ufw allow from "$K3S_SERVICE_CIDR" \
+  comment 'k3s service network'
 
 ufw allow from "$LAN_CIDR" to any port 22 proto tcp \
   comment 'SSH from trusted LAN'

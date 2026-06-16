@@ -28,15 +28,46 @@ ARCHIVE_FILE="$WORK_DIR/${HOST_SHORT}_${STAMP}.tar.gz"
 FINAL_FILE="$DEST_DIR/${HOST_SHORT}_${STAMP}.tar.gz.enc"
 TEMP_FINAL="${FINAL_FILE}.partial"
 
-cleanup() {
-  rm -rf "$WORK_DIR"
-  rm -f "$TEMP_FINAL"
-}
-trap cleanup EXIT
-
 log() {
   printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"
 }
+
+STOPPED_CONTAINERS=()
+
+stop_container_for_backup() {
+  local container="$1"
+
+  if docker inspect "$container" >/dev/null 2>&1 \
+    && [[ "$(docker inspect -f '{{.State.Running}}' "$container")" == "true" ]]; then
+    log "Stopping $container briefly for a consistent volume snapshot"
+    docker stop --time 30 "$container" >/dev/null
+    STOPPED_CONTAINERS+=("$container")
+  fi
+}
+
+restart_backup_containers() {
+  local container
+
+  for container in "${STOPPED_CONTAINERS[@]}"; do
+    log "Restarting $container"
+    docker start "$container" >/dev/null
+  done
+
+  STOPPED_CONTAINERS=()
+}
+
+cleanup() {
+  local exit_code="$1"
+
+  set +e
+  restart_backup_containers
+  rm -rf "$WORK_DIR"
+  rm -f "$TEMP_FINAL"
+
+  exit "$exit_code"
+}
+
+trap 'cleanup $?' EXIT
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -139,13 +170,29 @@ docker exec mariadb sh -c \
 gzip -t "$STAGE_DIR/docker/mariadb-all-databases.sql.gz"
 
 log "Archiving Docker application volumes"
+
+PORTAINER_VOLUME=/var/lib/docker/volumes/danzee-homelab_portainer_data/_data
+UPTIME_KUMA_VOLUME=/var/lib/docker/volumes/danzee-homelab_uptime_kuma_data/_data
+
+for volume_path in "$PORTAINER_VOLUME" "$UPTIME_KUMA_VOLUME"; do
+  if [[ ! -d "$volume_path" ]]; then
+    echo "Required Docker volume path not found: $volume_path" >&2
+    exit 1
+  fi
+done
+
+stop_container_for_backup portainer
+stop_container_for_backup uptime-kuma
+
 tar --numeric-owner \
   -czf "$STAGE_DIR/docker/volumes/portainer-data.tar.gz" \
-  -C /var/lib/docker/volumes/danzee-homelab_portainer_data/_data .
+  -C "$PORTAINER_VOLUME" .
 
 tar --numeric-owner \
   -czf "$STAGE_DIR/docker/volumes/uptime-kuma-data.tar.gz" \
-  -C /var/lib/docker/volumes/danzee-homelab_uptime_kuma_data/_data .
+  -C "$UPTIME_KUMA_VOLUME" .
+
+restart_backup_containers
 
 log "Creating online backup of the k3s SQLite datastore"
 sqlite3 /var/lib/rancher/k3s/server/db/state.db \

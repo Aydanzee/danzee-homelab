@@ -93,3 +93,8 @@ gunzip -c docker/mariadb-all-databases.sql.gz | head
 Restoring the k3s datastore is destructive and version-sensitive. Stop k3s, preserve the current datastore, and verify the k3s version before replacing state.
 
 The routine validation script only runs `PRAGMA integrity_check`; it does not alter the live cluster.
+
+
+## Application-volume consistency
+
+MariaDB is captured with a transactional logical dump. Portainer and Uptime Kuma are stopped briefly while their persistent volumes are archived, then restarted immediately. The exit trap also restarts them if a later backup step fails.

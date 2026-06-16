@@ -82,6 +82,20 @@ if [[ -z "$FSTYPE" ]]; then
   exit 1
 fi
 
+case "$FSTYPE" in
+  exfat|vfat)
+    MOUNT_OPTIONS="defaults,nofail,x-systemd.automount,x-systemd.device-timeout=10s,uid=0,gid=0,fmask=0077,dmask=0077"
+    ;;
+  ext4|xfs|btrfs)
+    MOUNT_OPTIONS="defaults,nofail,x-systemd.automount,x-systemd.device-timeout=10s"
+    ;;
+  *)
+    echo "Unsupported backup filesystem: $FSTYPE" >&2
+    echo "Supported filesystems: exfat, vfat, ext4, xfs, btrfs" >&2
+    exit 1
+    ;;
+esac
+
 echo "Using existing partition:"
 echo "  Device:     $DEVICE"
 echo "  UUID:       $USB_UUID"
@@ -104,7 +118,7 @@ install -d -m 0700 "$USB_MOUNT"
 cp /etc/fstab "/etc/fstab.backup-$(date +%Y%m%d-%H%M%S)"
 
 if ! grep -Fq "UUID=$USB_UUID " /etc/fstab; then
-  echo "UUID=$USB_UUID $USB_MOUNT $FSTYPE defaults,nofail,x-systemd.automount,x-systemd.device-timeout=10s,uid=0,gid=0,fmask=0077,dmask=0077 0 0" \
+  echo "UUID=$USB_UUID $USB_MOUNT $FSTYPE $MOUNT_OPTIONS 0 0" \
     >>/etc/fstab
 fi
 

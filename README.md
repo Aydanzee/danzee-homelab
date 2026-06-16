@@ -1,8 +1,22 @@
 # Danzee Homelab
 
+[![Validate](https://github.com/Aydanzee/danzee-homelab/actions/workflows/validate.yml/badge.svg)](https://github.com/Aydanzee/danzee-homelab/actions/workflows/validate.yml)
+
 A compact, security-conscious Ubuntu homelab for containers, Kubernetes, private AI, remote access, monitoring, and encrypted USB backups.
 
 Built on an older laptop to prove that useful infrastructure does not need expensive hardware.
+
+## Tested environment
+
+- Ubuntu 24.04.4 LTS
+- Intel Core i5-6200U
+- 4 GB RAM with 4 GB swap
+- 500 GB internal disk
+- k3s `v1.35.5+k3s1`
+- Ollama `0.30.8`
+- 32 GB exFAT USB backup drive
+
+The automation remains configurable, but these are the versions and resource limits used by the reference build.
 
 ## What is running
 
@@ -53,6 +67,8 @@ flowchart LR
 - Private app access is limited to the trusted LAN and Tailscale.
 - Ollama listens on `127.0.0.1`, not the public network.
 - Backup archives are encrypted with AES-256-CBC using PBKDF2 before being written to USB.
+- Portainer and Uptime Kuma are stopped briefly while their persistent volumes are archived, then restarted even if the backup fails.
+- The reference k3s and Ollama versions are pinned in the example configuration.
 - The backup passphrase is root-only; a separate recovery copy must be stored off-host.
 - Secrets, `.env` files, recovery keys, database dumps, Tailscale addresses, and live backup archives are excluded from Git.
 
@@ -60,6 +76,10 @@ flowchart LR
 
 ```text
 .
+├── .github/
+│   └── workflows/
+│       └── validate.yml
+├── .yamllint.yml
 ├── README.md
 ├── SECURITY.md
 ├── config/
@@ -122,7 +142,7 @@ sudo bash scripts/server/install-backup-system.sh \
   --user YOUR_LINUX_USER
 ```
 
-The backup installer mounts the existing filesystem by UUID. It refuses to format it.
+The backup installer mounts the existing filesystem by UUID. It refuses to format it and supports `exfat`, `vfat`, `ext4`, `xfs`, and `btrfs` with filesystem-appropriate mount options.
 
 ### 4. Validate the host
 
@@ -197,7 +217,8 @@ This repository captures a working single-node lab with tested:
 - encrypted USB backup creation;
 - checksum verification;
 - full restore validation;
-- nightly systemd scheduling.
+- nightly systemd scheduling;
+- automated shell and YAML validation through GitHub Actions.
 
 ## License
 
