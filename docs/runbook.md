@@ -111,3 +111,23 @@ systemctl list-timers danzee-homelab-backup.timer --all
 ```
 
 A first heartbeat attempt may fail immediately after the backup because Uptime Kuma has just restarted. The heartbeat script retries before recording a warning.
+
+
+## Beszel is unavailable
+
+```bash
+sudo danzee-beszel-status
+docker compose -f /opt/beszel/compose.yaml --profile agent ps
+docker logs --tail 100 beszel
+docker logs --tail 100 beszel-agent
+curl -fsS http://127.0.0.1:8090/api/health
+sudo ufw status numbered
+```
+
+Confirm that:
+
+- the Hub and Agent are healthy;
+- `/opt/beszel/socket` exists and is shared by both containers;
+- the Docker socket proxy binds only to `127.0.0.1:2375`;
+- TCP `8090` is allowed only from the trusted LAN and `tailscale0`;
+- `/etc/danzee-beszel/agent.env` and `/etc/danzee-beszel/agent-key` remain root-only.

@@ -94,3 +94,24 @@ sudo journalctl -t danzee-backup-heartbeat -n 20 --no-pager
 sudo systemctl status danzee-homelab-backup.service --no-pager
 systemctl list-timers danzee-homelab-backup.timer --all
 ```
+
+
+## Historical resource monitoring
+
+Uptime Kuma answers whether a service is available. Beszel answers how the host and Docker containers use CPU, memory, swap, disk, network, and temperature over time.
+
+Install the reference Beszel stack with:
+
+```bash
+sudo bash scripts/server/install-beszel-monitoring.sh   --lan-ip LAN_IP   --lan-cidr LAN_CIDR
+```
+
+The dashboard listens on TCP `8090` and is limited to the trusted LAN and `tailscale0`. The Docker socket proxy listens only on `127.0.0.1:2375`.
+
+Add Beszel itself to Uptime Kuma as an HTTP monitor targeting:
+
+```text
+http://LAN_IP:8090/api/health
+```
+
+See [`resource-monitoring.md`](resource-monitoring.md) for the complete security and operations model.

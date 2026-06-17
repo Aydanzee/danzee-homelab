@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 - 2026-06-17
+
+- Added lightweight Beszel host and Docker resource monitoring with historical charts.
+- Added a loopback-only Docker socket proxy and root-only Beszel agent credentials.
+- Added LAN- and Tailscale-scoped firewall access for the Beszel dashboard.
+- Added reusable Beszel installation, agent-setup, rollback, and health-check automation.
+- Documented Axiom Local v1.2 persistent chats, file uploads, model warm retention, and long-answer continuation.
+- Documented the distinction between availability monitoring, resource monitoring, and whole-network traffic accounting.
+- Recorded Beszel database backup integration as a follow-up requiring a tested consistent snapshot.
+
 ## 1.0.0 - 2026-06-17
 
 - Made Portainer and Uptime Kuma volume snapshots consistent by stopping and reliably restarting their containers.

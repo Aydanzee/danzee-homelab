@@ -101,3 +101,28 @@ Successful systemd backup
 ```
 
 UFW permits only the discovered Uptime Kuma Docker subnet to reach the host ports used by Axiom Local and Portainer. The backup heartbeat retries because Uptime Kuma is briefly restarted while its persistent volume is archived.
+
+
+## Resource monitoring flow
+
+```text
+Browser on trusted LAN or Tailscale
+          |
+          v
+Beszel Hub :8090
+          |
+          | shared Unix socket
+          v
+Beszel Agent
+          |
+          +-- host CPU, memory, swap, disk, network, temperature
+          |
+          +-- loopback-only Docker socket proxy
+                        |
+                        v
+                 Docker Engine metrics
+```
+
+The Docker socket proxy is bound to `127.0.0.1` and permits only the read-only endpoints required for container metrics. Beszel credentials remain in root-only files outside the repository.
+
+Beszel measures traffic on the Ubuntu host and its containers. It does not provide whole-house bandwidth accounting unless the host is the gateway or the router exports usable counters.

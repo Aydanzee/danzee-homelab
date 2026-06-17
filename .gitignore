@@ -44,3 +44,12 @@ restore/
 logs/
 tmp/
 *.log
+
+# Beszel runtime data and credentials
+beszel_data/
+beszel_socket/
+agent.env
+agent-key
+
+# Axiom Local private runtime data
+axiom-local-data/

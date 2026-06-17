@@ -14,6 +14,7 @@ Built on an older laptop to prove that useful infrastructure does not need expen
 - 500 GB internal disk
 - k3s `v1.35.5+k3s1`
 - Ollama `0.30.8`
+- Beszel `0.18.7`
 - 32 GB exFAT USB backup drive
 
 The automation remains configurable, but these are the versions and resource limits used by the reference build.
@@ -23,13 +24,14 @@ The automation remains configurable, but these are the versions and resource lim
 | Layer | Tool | Purpose |
 |---|---|---|
 | Host | Ubuntu Server/Desktop 24.04 LTS | Base operating system |
-| Containers | Docker Engine + Compose | Portainer, MariaDB, Uptime Kuma, app workloads |
+| Containers | Docker Engine + Compose | Portainer, MariaDB, Uptime Kuma, Beszel, app workloads |
 | Kubernetes | k3s | Lightweight single-node cluster and lab workloads |
 | Private networking | Tailscale | Encrypted remote SSH and app access |
 | Firewall | UFW | LAN- and Tailscale-scoped inbound access |
 | Local AI | Ollama | CPU-friendly local model serving |
 | AI interface | Axiom Local | Private browser UI for local models; source kept separately |
-| Monitoring | Uptime Kuma | Service health and status checks |
+| Availability monitoring | Uptime Kuma | Service health, status checks, and backup heartbeat |
+| Resource monitoring | Beszel | Historical host and Docker resource usage |
 | Backups | systemd + OpenSSL + USB | Nightly encrypted backups with validation and retention |
 
 ## Current design
@@ -47,6 +49,7 @@ flowchart LR
     Axiom[Axiom Local]
     Kuma[Uptime Kuma]
     Portainer[Portainer]
+    Beszel[Beszel resource monitoring]
     USB[Encrypted USB backups]
     Heartbeat[Backup success heartbeat]
 
@@ -61,6 +64,8 @@ flowchart LR
     Docker --> Axiom
     Docker --> Kuma
     Docker --> Portainer
+    Docker --> Beszel
+    Beszel --> Docker
     Axiom --> Ollama
     Kuma --> Axiom
     Kuma --> K3s
@@ -80,6 +85,7 @@ flowchart LR
 - Portainer and Uptime Kuma are stopped briefly while their persistent volumes are archived, then restarted even if the backup fails.
 - The reference k3s and Ollama versions are pinned in the example configuration.
 - The backup passphrase is root-only; a separate recovery copy must be stored off-host.
+- Beszel uses a loopback-only, read-only Docker socket proxy rather than unrestricted LAN socket exposure.
 - Secrets, `.env` files, recovery keys, database dumps, Tailscale addresses, and live backup archives are excluded from Git.
 
 ## Repository map
@@ -96,9 +102,11 @@ flowchart LR
 │   └── homelab.env.example
 ├── docs/
 │   ├── architecture.md
+│   ├── axiom-local-v1.2.md
 │   ├── backup-and-restore.md
 │   ├── command-cheatsheet.md
 │   ├── monitoring.md
+│   ├── resource-monitoring.md
 │   └── runbook.md
 ├── k8s/
 │   ├── guardrails.yaml
@@ -114,6 +122,7 @@ flowchart LR
 │       ├── configure-monitoring.sh
 │       ├── health-check.sh
 │       ├── install-backup-system.sh
+│       ├── install-beszel-monitoring.sh
 │       └── validate-latest-backup.sh
 └── systemd/
     ├── danzee-homelab-backup.service
@@ -176,6 +185,23 @@ sudo bash scripts/server/configure-monitoring.sh --lan-ip LAN_IP
 
 The Push URL is requested through a hidden prompt and stored in a root-only file. Do not paste it into configuration tracked by Git.
 
+### 6. Configure historical resource monitoring
+
+```bash
+sudo bash scripts/server/install-beszel-monitoring.sh \
+  --lan-ip LAN_IP \
+  --lan-cidr LAN_CIDR
+```
+
+Create the initial Beszel administrator, choose **Add System -> Docker**, use `/beszel_socket/beszel.sock`, then complete the root-only agent setup:
+
+```bash
+sudo danzee-beszel-agent-setup
+sudo danzee-beszel-status
+```
+
+See [`docs/resource-monitoring.md`](docs/resource-monitoring.md) for the security model, alerts, and network-accounting limitation.
+
 ## Useful commands
 
 The full operational cheat sheet is in [`docs/command-cheatsheet.md`](docs/command-cheatsheet.md).
@@ -209,6 +235,9 @@ systemctl status ollama --no-pager
 ollama list
 curl http://127.0.0.1:11434/api/tags
 
+# Beszel
+sudo danzee-beszel-status
+
 # Backups
 systemctl list-timers danzee-homelab-backup.timer --all
 sudo systemctl start danzee-homelab-backup.service
@@ -217,7 +246,7 @@ sudo journalctl -u danzee-homelab-backup.service -n 80 --no-pager
 
 ## Axiom Local
 
-Axiom Local is the private local-AI web interface used on this homelab. Its application source is intentionally not included here. This repository documents the infrastructure around it and reserves the default app port `8088`.
+Axiom Local is the private local-AI web interface used on this homelab. Its application source is intentionally not included here. The deployed v1.2 release adds persistent multi-chat history, file uploads, cross-device conversations, improved slow-model handling, and continuation support. See [`docs/axiom-local-v1.2.md`](docs/axiom-local-v1.2.md).
 
 ## Monitoring and backup heartbeat
 
@@ -225,7 +254,7 @@ Uptime Kuma monitors Axiom Local, the k3s demo workload, Portainer, and completi
 
 UFW access for Axiom Local and Portainer is limited to the discovered Uptime Kuma Docker subnet. The Docker socket is not mounted into the monitoring container.
 
-See [`docs/monitoring.md`](docs/monitoring.md) for the monitor definitions, firewall model, heartbeat behaviour, and troubleshooting commands.
+See [`docs/monitoring.md`](docs/monitoring.md) for availability monitoring and [`docs/resource-monitoring.md`](docs/resource-monitoring.md) for historical host and container metrics.
 
 ## Recovery principle
 
@@ -253,6 +282,8 @@ This repository captures a working single-node lab with tested:
 - nightly systemd scheduling;
 - Uptime Kuma service monitoring;
 - successful-backup Push heartbeats with retry handling;
+- Beszel host and Docker resource monitoring through a restricted socket proxy;
+- Axiom Local v1.2 operational documentation;
 - automated shell and YAML validation through GitHub Actions.
 
 ## License

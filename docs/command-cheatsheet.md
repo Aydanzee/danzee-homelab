@@ -193,3 +193,15 @@ sudo /usr/local/sbin/danzee-backup-heartbeat
 # Scoped firewall access
 sudo ufw status numbered
 ```
+
+
+## Beszel resource monitoring
+
+```bash
+sudo danzee-beszel-status
+docker compose -f /opt/beszel/compose.yaml --profile agent ps
+docker logs --tail 100 beszel
+docker logs --tail 100 beszel-agent
+curl -fsS http://127.0.0.1:8090/api/health
+sudo ufw status numbered
+```
